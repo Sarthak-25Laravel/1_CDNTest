@@ -13,7 +13,7 @@ window.ImageReducer = (function () {
         containerRef = container;
 
         container.innerHTML = `
-        <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/Sarthak-25Laravel/Image-Crop-Reduce.js/imageReducer.css">
+        
         <div class="upload-wrapper">
             <div class="drop-area" id="dropArea">
                 <p>Drag & drop image here or click to select</p>
