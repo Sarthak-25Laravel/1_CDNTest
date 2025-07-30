@@ -1,182 +1,151 @@
 // imageReducer.js
-// A self-contained, CDN-friendly image reducer tool with cropper and WebP conversion
-
 window.ImageReducer = (function () {
-    let selectedFiles = [];
-    let currentCropper = null;
-    let currentImageIndex = 0;
     let config = {};
+    let containerRef = null;
 
-    function init(selector, userConfig = {}) {
+    function init(selector, options = {}) {
+        config = { ...options };
         const container = document.querySelector(selector);
         if (!container) {
-            console.error('ImageReducer: Invalid selector');
+            console.error('ImageReducer: Container not found');
             return;
         }
+        containerRef = container;
 
-        config = { ...userConfig };
-        container.innerHTML = getHTML();
+        container.innerHTML = `
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/Sarthak-25Laravel/Image-Crop-Reduce.js/imageReducer.css">
+        <div class="upload-wrapper">
+            <div class="drop-area" id="dropArea">
+                <p>Drag & drop image here or click to select</p>
+                <input type="file" id="fileInput" accept="image/*" hidden>
+                <button id="selectFileBtn">Choose File</button>
+                <div id="errorMsg"></div>
+                <div id="successMsg"></div>
+            </div>
+            <div id="preview"></div>
+            <label>DPI: <input type="range" id="dpiRange" min="50" max="300" value="300"></label>
+            <span id="dpiValue">300</span>
+            <button id="convertBtn">Convert to WebP</button>
 
+            <div id="previewModal" class="modal">
+                <div class="modal-content">
+                    <button class="close-btn" id="closePreview">×</button>
+                    <div class="image-comparison">
+                        <div>
+                            <h3>Original</h3>
+                            <img id="originalPreviewImg">
+                            <div id="originalMeta"></div>
+                        </div>
+                        <div>
+                            <h3>Converted (WebP)</h3>
+                            <img id="webpPreviewImg">
+                            <div id="webpMeta"></div>
+                        </div>
+                    </div>
+                    <button id="downloadWebpBtn">Download WebP</button>
+                </div>
+            </div>
+        </div>
+        `;
+
+        attachEvents(container);
+    }
+
+    function attachEvents(container) {
         const dropArea = container.querySelector('#dropArea');
         const fileInput = container.querySelector('#fileInput');
-        const preview = container.querySelector('#preview');
-        const errorMsg = container.querySelector('#errorMsg');
-        const successMsg = container.querySelector('#successMsg');
-        const cropButton = container.querySelector('#cropButton');
-        const previewConverted = container.querySelector('#previewConverted');
-        const downloadAll = container.querySelector('#downloadAll');
+        const selectFileBtn = container.querySelector('#selectFileBtn');
         const dpiRange = container.querySelector('#dpiRange');
         const dpiValue = container.querySelector('#dpiValue');
+        const convertBtn = container.querySelector('#convertBtn');
         const previewModal = container.querySelector('#previewModal');
-        const cancelpreviewBtn = container.querySelector('#cancelpreviewBtn');
+        const closePreview = container.querySelector('#closePreview');
+        const downloadBtn = container.querySelector('#downloadWebpBtn');
+
+        const originalImg = container.querySelector('#originalPreviewImg');
+        const webpImg = container.querySelector('#webpPreviewImg');
+        const originalMeta = container.querySelector('#originalMeta');
+        const webpMeta = container.querySelector('#webpMeta');
+
+        let selectedFile = null;
+        let webpDataUrl = null;
+
+        selectFileBtn.addEventListener('click', () => fileInput.click());
+
+        fileInput.addEventListener('change', (e) => {
+            selectedFile = e.target.files[0];
+            showPreview(selectedFile);
+        });
 
         dpiRange.addEventListener('input', () => {
             dpiValue.textContent = dpiRange.value;
         });
 
-        dropArea.addEventListener('click', () => fileInput.click());
         dropArea.addEventListener('dragover', e => {
             e.preventDefault();
-            dropArea.classList.add('dragover');
+            dropArea.classList.add('highlight');
         });
-        dropArea.addEventListener('dragleave', () => dropArea.classList.remove('dragover'));
+        dropArea.addEventListener('dragleave', () => {
+            dropArea.classList.remove('highlight');
+        });
         dropArea.addEventListener('drop', e => {
             e.preventDefault();
-            dropArea.classList.remove('dragover');
-            handleFiles(e.dataTransfer.files, container);
+            dropArea.classList.remove('highlight');
+            selectedFile = e.dataTransfer.files[0];
+            showPreview(selectedFile);
         });
 
-        fileInput.addEventListener('change', e => {
-            handleFiles(e.target.files, container);
-            fileInput.value = '';
-        });
-
-        cropButton.addEventListener('click', () => openCropper(container));
-
-        previewConverted.addEventListener('click', () => previewWebP(container));
-
-        cancelpreviewBtn.addEventListener('click', () => {
-            previewModal.style.display = 'none';
-        });
-
-        downloadAll.addEventListener('click', () => downloadAllWebP(container));
-    }
-
-    function getHTML() {
-        return `<div class="upload-container">
-                <div class="drop-area" id="dropArea">
-                    <p>Drag & Drop or Click to Upload</p>
-                    <input type="file" id="fileInput" multiple accept="image/*" style="display:none">
-                </div>
-                <div class="preview" id="preview"></div>
-                <div class="error" id="errorMsg"></div>
-                <div class="success" id="successMsg"></div>
-                <div class="btn-container">
-                    <button type="button" id="previewConverted">Preview</button>
-                    <button type="button" id="cropButton">Crop</button>
-                    <div id="dpi">
-                        <label>DPI:</label>
-                        <input type="range" id="dpiRange" min="10" max="100" value="72">
-                        <span id="dpiValue">72</span>
-                    </div>
-                    <button type="button" id="downloadAll">Download All</button>
-                </div>
-            </div>
-            <div id="previewModal" style="display:none">
-                <img id="originalPreviewImg">
-                <img id="convertedPreviewImg">
-                <div id="convertedMeta"></div>
-                <button id="cancelpreviewBtn">Cancel</button>
-            </div>`;
-    }
-
-    function handleFiles(files, container) {
-        const preview = container.querySelector('#preview');
-        const errorMsg = container.querySelector('#errorMsg');
-        const successMsg = container.querySelector('#successMsg');
-
-        errorMsg.textContent = '';
-        successMsg.textContent = '';
-
-        Array.from(files).forEach((file, i) => {
-            selectedFiles.push(file);
+        convertBtn.addEventListener('click', () => {
+            if (!selectedFile) return;
 
             const reader = new FileReader();
-            reader.onload = e => {
-                const div = document.createElement('div');
-                div.className = 'preview-item';
-
-                const img = document.createElement('img');
-                img.src = e.target.result;
-                div.appendChild(img);
-
-                preview.appendChild(div);
-            };
-            reader.readAsDataURL(file);
-        });
-    }
-
-    function openCropper(container) {
-        // implement crop modal here
-    }
-
-    function previewWebP(container) {
-        const previewModal = container.querySelector('#previewModal');
-        const originalPreviewImg = container.querySelector('#originalPreviewImg');
-        const convertedPreviewImg = container.querySelector('#convertedPreviewImg');
-        const convertedMeta = container.querySelector('#convertedMeta');
-
-        if (selectedFiles.length !== 1) return;
-
-        const reader = new FileReader();
-        reader.onload = e => {
-            const img = new Image();
-            img.onload = () => {
-                originalPreviewImg.src = img.src;
-
-                const canvas = document.createElement('canvas');
-                canvas.width = img.width;
-                canvas.height = img.height;
-                canvas.getContext('2d').drawImage(img, 0, 0);
-
-                canvas.toBlob(blob => {
-                    convertedPreviewImg.src = URL.createObjectURL(blob);
-                    convertedMeta.innerHTML = `WEBP Size: ${(blob.size / 1024).toFixed(2)} KB`;
-                    previewModal.style.display = 'block';
-                }, 'image/webp');
-            };
-            img.src = e.target.result;
-        };
-        reader.readAsDataURL(selectedFiles[0]);
-    }
-
-    function downloadAllWebP(container) {
-        const dpiRange = container.querySelector('#dpiRange');
-        const scale = parseInt(dpiRange.value) / 72;
-
-        selectedFiles.forEach((file, i) => {
-            const reader = new FileReader();
-            reader.onload = e => {
+            reader.onload = function (e) {
                 const img = new Image();
-                img.onload = () => {
+                img.onload = function () {
+                    const dpi = parseInt(dpiRange.value);
+                    const scale = dpi / 300;
+
                     const canvas = document.createElement('canvas');
                     canvas.width = img.width * scale;
                     canvas.height = img.height * scale;
-                    canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
                     canvas.toBlob(blob => {
-                        const a = document.createElement('a');
-                        a.href = URL.createObjectURL(blob);
-                        a.download = `reduced-${i + 1}.webp`;
-                        a.click();
-                    }, 'image/webp');
+                        webpDataUrl = URL.createObjectURL(blob);
+                        webpImg.src = webpDataUrl;
+                        webpMeta.innerHTML = `Size: ${(blob.size / 1024).toFixed(2)} KB`;
+
+                        previewModal.style.display = 'block';
+                    }, 'image/webp', 0.9);
                 };
                 img.src = e.target.result;
             };
-            reader.readAsDataURL(file);
+            reader.readAsDataURL(selectedFile);
         });
+
+        closePreview.addEventListener('click', () => {
+            previewModal.style.display = 'none';
+        });
+
+        downloadBtn.addEventListener('click', () => {
+            if (webpDataUrl) {
+                const a = document.createElement('a');
+                a.href = webpDataUrl;
+                a.download = 'converted.webp';
+                a.click();
+            }
+        });
+
+        function showPreview(file) {
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                originalImg.src = e.target.result;
+                originalMeta.innerHTML = `Size: ${(file.size / 1024).toFixed(2)} KB`;
+            };
+            reader.readAsDataURL(file);
+        }
     }
 
-    return {
-        init
-    };
+    return { init };
 })();
