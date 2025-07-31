@@ -30,9 +30,20 @@
         .btn2{
             background: #2d995b
         }
+
         .btn3{
             background: #d53209
         }
+        
+        #restoreOriginal {
+            background-color: #9813d1;
+            color: white;
+        }
+
+        #restoreOriginal:hover {
+            background-color: #5a6268;
+        }
+
         .upload-container {
             background-color: white;
             border-radius: 8px;
@@ -306,6 +317,7 @@
             <div class="cropper-image-container" id="cropperImageContainer"></div>
             <div class="cropper-actions">
                 <button id="cropConfirm" class="btn-success">Save Crop</button>
+                <button id="restoreOriginal" class="btn-primary ">Restore Original</button>
                 <button id="downloadCrop" class="btn-primary">Download</button>
                 <button id="cropCancel" class="btn-danger">Cancel</button>
             </div>
@@ -437,8 +449,9 @@
             });
 
             
-            // State variables
+            // State variables 
             let selectedFiles = [];
+            let originalFiles = []; 
             let currentCropper = null;
             let currentImageIndex = 0;
             
@@ -460,6 +473,29 @@
                 handleFiles(e.target.files);
                 fileInput.value = '';
             });
+
+            function handleFiles(files) {
+                if (files.length === 0) return;
+                
+                // Clear previous messages
+                errorMsg.textContent = '';
+                successMsg.textContent = '';
+                if (selectedFiles.length + files.length > maxFiles) return showError(`Max ${maxFiles} files allowed.`);
+
+                Array.from(files).forEach(file => {
+                if (!validTypes.includes(file.type)) return showError('Only JPG, PNG, WebP allowed.');
+                if (file.size > maxSize) return showError('File size should not exceed 2MB.');
+                        // Store original file
+                        originalFiles.push(file);
+                        // Store working copy (initially same as original)
+                        selectedFiles.push(file);
+                        // Create preview
+                        createPreview(file, selectedFiles.length - 1);
+                    });
+                
+                // Update crop button state
+                updateCropButtonState();
+            }
             
             cropButton.addEventListener('click', () => {
                 if (selectedFiles.length !== 1) {
@@ -471,7 +507,33 @@
 
             cropConfirm.addEventListener('click', confirmCrop);
             cropCancel.addEventListener('click', closeCropper);
-            cancelpreviewBtn.addEventListener('click', closepreview);   
+            cancelpreviewBtn.addEventListener('click', closepreview);  
+            document.getElementById('restoreOriginal').addEventListener('click', restoreOriginalImage);
+
+            function restoreOriginalImage() {
+                if (originalFiles.length <= currentImageIndex) return;
+                
+                // Get the original file
+                const originalFile = originalFiles[currentImageIndex];
+                
+                // Replace the current file with the original
+                selectedFiles[currentImageIndex] = originalFile;
+                
+                // Update the preview
+                const previewItems = preview.querySelectorAll('.preview-item');
+                if (previewItems[currentImageIndex]) {
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        const img = previewItems[currentImageIndex].querySelector('img');
+                        img.src = e.target.result;
+                    };
+                    reader.readAsDataURL(originalFile);
+                }
+                
+                // Close the cropper
+                closeCropper();
+                showSuccess('Original image restored');
+            } 
             
             downloadCrop.addEventListener('click', () => {
                 if (!currentCropper) return;
@@ -488,23 +550,26 @@
             });
 
             downloadAllButton.addEventListener('click', async () => {
-            if (selectedFiles.length === 0) return alert('No images to download.');
-            const selectedDpi = parseInt(dpiRange.value); // string to Int (cause js only takes input as String datatype)
-            const baseDpi = 72;
-            const scaleFactor = selectedDpi / baseDpi;
+                if (selectedFiles.length === 0) return alert('No images to download.');
+                const selectedDpi = parseInt(dpiRange.value); // Get selected DPI
 
-            for (let i = 0; i < selectedFiles.length; i++) {
+                for (let i = 0; i < selectedFiles.length; i++) {
                     const file = selectedFiles[i];
                     const reader = new FileReader();
+                    
                     await new Promise(resolve => {
                         reader.onload = e => {
                             const img = new Image();
                             img.onload = () => {
                                 const canvas = document.createElement('canvas');
-                                canvas.width = img.width * scaleFactor;
-                                canvas.height = img.height * scaleFactor;
+                                // Keep original dimensions (no scaling)
+                                canvas.width = img.width;
+                                canvas.height = img.height;
+                                
                                 const ctx = canvas.getContext('2d');
                                 ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                                
+                                // Convert to Blob with specified quality (lower DPI reduces file size)
                                 canvas.toBlob(blob => {
                                     const a = document.createElement('a');
                                     a.href = URL.createObjectURL(blob);
@@ -513,7 +578,7 @@
                                     a.click();
                                     document.body.removeChild(a);
                                     resolve();
-                                }, 'image/webp', 0.9);
+                                }, 'image/webp', 0.8); // Adjust quality (0.8 = 80%)
                             };
                             img.src = e.target.result;
                         };
@@ -521,29 +586,6 @@
                     });
                 }
             });
-
-
-            function handleFiles(files) {
-                if (files.length === 0) return;
-                
-                // Clear previous messages
-                errorMsg.textContent = '';
-                successMsg.textContent = '';
-        if (selectedFiles.length + files.length > maxFiles) return showError(`Max ${maxFiles} files allowed.`);
-
-                Array.from(files).forEach(file => {
-            if (!validTypes.includes(file.type)) return showError('Only JPG, PNG, WebP allowed.');
-            if (file.size > maxSize) return showError('File size should not exceed 2MB.');
-                    selectedFiles.push(file);
-                    
-                    // Create preview
-                    createPreview(file, selectedFiles.length - 1);
-                });
-                
-                // Update crop button state
-                updateCropButtonState();
-            }
-            
 
             function createPreview(file, index) {
                 const reader = new FileReader();
@@ -636,6 +678,7 @@
 
             function removeImage(index) {
                 selectedFiles.splice(index, 1);
+                originalFiles.splice(index, 1); // Also remove from originals
                 preview.innerHTML = '';
                 selectedFiles.forEach((file, i) => createPreview(file, i));
                 updateCropButtonState();
