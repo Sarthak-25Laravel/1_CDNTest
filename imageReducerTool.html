@@ -1,0 +1,742 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Image Upload with Cropper</title>
+    <!-- Cropper.js CSS -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css" />
+    <!-- Cropper.js JS -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
+    
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f9f9f9;
+        }
+        
+        h1 {
+            text-align: center;
+            color: #2c3e50;
+            margin-bottom: 30px;
+        }
+        
+        .btn2{
+            background: #2d995b
+        }
+        .btn3{
+            background: #d53209
+        }
+        .upload-container {
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            padding: 30px;
+            margin-bottom: 30px;
+        }
+        
+        .drop-area {
+            border: 2px dashed #ccc;
+            border-radius: 10px;
+            padding: 40px;
+            text-align: center;
+            margin: 0 auto 20px;
+            cursor: pointer;
+            transition: all 0.3s;
+            background-color: #f8fafc;
+        }
+        
+        .drop-area.dragover {
+            background-color: #f0f8ff;
+            border-color: #3490dc;
+        }
+        
+        .drop-area p {
+            margin: 0;
+            font-size: 18px;
+            color: #666;
+        }
+        
+        .preview {
+            display: flex;
+            flex-wrap: wrap;
+            margin-top: 20px;
+            gap: 15px;
+            justify-content: center;
+        }
+        
+        .preview-item {
+            position: relative;
+            width: 120px;
+            height: 120px;
+        }
+        
+        .preview img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 8px;
+            border: 1px solid #ddd;
+            transition: transform 0.2s;
+        }
+        
+        .preview img:hover {
+            transform: scale(1.05);
+        }
+        
+        .preview-item .remove-btn {
+            position: absolute;
+            top: -10px;
+            right: -10px;
+            background-color: #e3342f;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 25px;
+            height: 25px;
+            font-size: 12px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+        
+        .preview-item:hover .remove-btn {
+            opacity: 1;
+        }
+        
+        .error {
+            color: #e3342f;
+            margin: 15px 0;
+            text-align: center;
+            min-height: 20px;
+        }
+        
+        .success {
+            color: #38c172;
+            margin: 15px 0;
+            text-align: center;
+            min-height: 20px;
+        }
+        
+        /* .btn-container {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-top: 25px;
+        } */
+        .btn-container {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            align-items: stretch;
+            flex-wrap: wrap;
+        }
+
+        .btn-container button,
+        .btn-container #dpi {
+            width: 160px; 
+            height: 80px; 
+            box-sizing: border-box;
+            text-align: center;
+        }
+        
+        button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        
+        .btn-primary {
+            background-color: #3490dc;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background-color: #2779bd;
+        }
+        
+        .btn-primary:disabled {
+            background-color: #b8daff;
+            cursor: not-allowed;
+        }
+        
+        .btn-success {
+            background-color: #38c172;
+            color: white;
+        }
+        
+        .btn-success:hover {
+            background-color: #2d995b;
+        }
+
+        /* #dpi{
+            border: 2px solid rgb(0, 98, 255);
+            border-radius: 10px;
+            text-align: center; 
+            margin-top: 20px;
+        } */
+        
+        /* Cropper modal styles */
+        .cropper-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(150, 148, 148, 0.981);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            background-color: #9b9595;
+            opacity: 1;
+        }
+           
+        .cropper-container {
+            background: white;
+            padding: 0;
+            border-radius: 8px;
+            width: 90%;
+            max-width: 800px;
+            max-height: 90vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }       
+
+        .cropper-image-container {
+            flex: 1;
+            overflow: auto;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        
+        .cropper-image-container img {
+            max-width: 40%;
+            max-height: 30vh;
+            object-fit: contain;
+        }
+        
+        .cropper-actions {
+            background: #fff;
+            padding: 15px;
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            border-top: 1px solid #ddd;
+            position: sticky;
+            bottom: 0;
+        }
+        
+        .cropper-actions button {
+            min-width: 120px;
+        }
+        
+        .btn-danger {
+            background-color: #e3342f;
+            color: white;
+        }
+        
+        .btn-danger:hover {
+            background-color: #cc1f1a;
+        }
+        
+        @media (max-width: 768px) {
+            .drop-area {
+                padding: 30px 15px;
+            }
+            
+            .preview-item {
+                width: 100px;
+                height: 100px;
+            }
+            
+            .cropper-container {
+                width: 95%;
+                padding: 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="upload-container">
+        <h1>Image Reducer | Cropping </h1>
+        
+        <form id="uploadForm" action="{{ route('upload.image') }}" method="POST" enctype="multipart/form-data">
+            <div class="drop-area" id="dropArea">
+                <p>Drag & Drop images here or click to select</p>
+                <input type="file" name="images[]" id="fileInput" multiple accept="image/*" style="display: none;">
+            </div>
+            
+            <div class="preview" id="preview"></div>
+            
+            <div class="error" id="errorMsg"></div>
+            <div class="success" id="successMsg"></div>
+            
+            <div class="btn-container">
+                <button type="button" id="previewConverted" class="btn-primary" disabled>Preview</button>
+                <button type="button" id="cropButton" class="btn-primary" disabled>Crop Image</button>
+                <div id="dpi" style="background-color:#8fc1ea;border: 2px solid #2779bd ; border-radius: 10px; padding-left:3px;padding-right:3px;">
+                        <label for="dpiRange" style="font-weight: bold; font-size: 16px;">Chose DPI Range:</label><br>
+                        <input type="range" id="dpiRange" min="10" max="100" value="72" style="vertical-align: middle;">
+                        <span id="dpiValue" style="font-weight: bold; margin-left: 10px;">72</span>
+                </div>
+                <button type="button" id="downloadAll" class="btn-primary">Download All (WebP)</button>
+            </div>
+        </form>
+    </div>
+    
+    <!-- Cropper Modal -->
+    <div class="cropper-modal" id="cropperModal">
+        <div class="cropper-container">
+            <div class="cropper-image-container" id="cropperImageContainer"></div>
+            <div class="cropper-actions">
+                <button id="cropConfirm" class="btn-success">Save Crop</button>
+                <button id="downloadCrop" class="btn-primary">Download</button>
+                <button id="cropCancel" class="btn-danger">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- Preview Modal Div -->
+    <div id="previewModal" style="display: none;">
+        <div>
+            <h3>Original</h3>
+            <img id="originalPreviewImg" style="max-width: 100%;">
+            <div id="originalMeta"></div>
+        </div>
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        <div> 
+            <h3>Converted (WebP)</h3>
+            <img id="convertedPreviewImg" style="max-width: 100%;">
+            <div id="convertedMeta"></div>
+        </div>
+        <a id="downloadConvertedBtn" class="btn"> <button class="btn2">Download</button></a>
+        &nbsp;&nbsp;
+        <a id="cancelpreviewBtn" class="btn"> <button class="btn3">Cancel</button></a>
+    </div>
+
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const dropArea = document.getElementById('dropArea');
+            const fileInput = document.getElementById('fileInput');
+            const preview = document.getElementById('preview');
+            const errorMsg = document.getElementById('errorMsg');
+            const successMsg = document.getElementById('successMsg');
+            const cropButton = document.getElementById('cropButton');
+            const cropperModal = document.getElementById('cropperModal');
+            const cropperImageContainer = document.getElementById('cropperImageContainer');
+            const cropConfirm = document.getElementById('cropConfirm');
+            const cropCancel = document.getElementById('cropCancel');
+            const downloadCrop = document.getElementById('downloadCrop');
+            const downloadAllButton = document.getElementById('downloadAll');
+            // const uploadButton = document.getElementById('uploadButton');
+            const previewModaldiv = document.getElementById('previewModal'); // for preview image preview div
+            const dpiDiv = document.getElementById('dpi');
+            const dpiRange = document.getElementById('dpiRange');
+            const dpiValue = document.getElementById('dpiValue');
+            dpiRange.addEventListener('input', () => {
+                dpiValue.textContent = dpiRange.value;
+            });
+            const validTypes = ['image/jpeg', 'image/png', 'image/webp'];
+            const maxSize = 2 * 1024 * 1024;
+            const maxFiles = 10;
+            const previewConverted = document.getElementById('previewConverted');
+            const previewModal = document.getElementById('previewModal');
+            const originalPreviewImg = document.getElementById('originalPreviewImg');
+            const convertedPreviewImg = document.getElementById('convertedPreviewImg');
+            const originalMeta = document.getElementById('originalMeta');
+            const convertedMeta = document.getElementById('convertedMeta');
+            const downloadConvertedBtn = document.getElementById('downloadConvertedBtn');
+            const cancelpreviewBtn = document.getElementById('cancelpreviewBtn');
+
+            // Preview Button Click-Event 
+            previewConverted.addEventListener('click', () => {
+                if (selectedFiles.length !== 1) {
+                    showError('Select one image to preview.');
+                    return;
+                }
+
+                const file = selectedFiles[0];
+                const reader = new FileReader();
+
+                reader.onload = e => {
+                    const img = new Image();
+                    img.src = e.target.result;
+
+                    img.onload = () => {
+                        // --- ORIGINAL INFO ---
+                        originalPreviewImg.src = img.src;
+
+                        const originalSizeKB = file.size / 1024;
+                        const originalMB = (originalSizeKB / 1024).toFixed(2);
+                        const originalName = file.name;
+                        const originalExt = originalName.split('.').pop();
+
+                        originalMeta.innerHTML = `
+                            <strong>${originalName}</strong><br>
+                            Format: <span style="text-transform: uppercase;">${originalExt}</span><br>
+                            Dimensions: ${img.width} × ${img.height}<br>
+                            Size: ${originalSizeKB.toFixed(2)} KB (${originalMB} MB)
+                        `;
+
+                        // --- WEBP CONVERSION ---
+                        const canvas = document.createElement('canvas');
+                        canvas.width = img.width;
+                        canvas.height = img.height;
+
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0);
+
+                        canvas.toBlob(blob => {
+                            const webpURL = URL.createObjectURL(blob);
+                            convertedPreviewImg.src = webpURL;
+
+                            const webpSizeKB = blob.size / 1024;
+                            const percentReduction = 100 - (blob.size / file.size) * 100;
+
+                            convertedMeta.innerHTML = `
+                                Format: WEBP<br>
+                                Dimensions: ${img.width} × ${img.height}<br>
+                                Size: ${webpSizeKB.toFixed(2)} KB<br>
+                                <span style="color: green; font-weight: bold;">-${percentReduction.toFixed(2)}%</span> smaller
+                            `;
+
+                            downloadConvertedBtn.href = webpURL;
+                            downloadConvertedBtn.download = originalName.replace(/\.\w+$/, '.webp');
+
+                            previewModal.style.display = 'flex';
+                        }, 'image/webp', 0.9);
+                    };
+
+                };
+                reader.readAsDataURL(file);
+            });
+
+            // Close preview modal when clicking outside
+            previewModal.addEventListener('click', (e) => {
+                if (e.target === previewModal) {
+                    previewModal.style.display = 'none';
+                }
+            });
+
+            
+            // State variables
+            let selectedFiles = [];
+            let currentCropper = null;
+            let currentImageIndex = 0;
+            
+            updateCropButtonState();
+            
+            dropArea.addEventListener('click', () => fileInput.click());
+            dropArea.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                dropArea.classList.add('dragover');
+            });
+            dropArea.addEventListener('dragleave', () => dropArea.classList.remove('dragover'));
+            dropArea.addEventListener('drop', (e) => {
+                e.preventDefault();
+                dropArea.classList.remove('dragover');
+                handleFiles(e.dataTransfer.files);
+            });
+            
+            fileInput.addEventListener('change', (e) => {
+                handleFiles(e.target.files);
+                fileInput.value = '';
+            });
+            
+            cropButton.addEventListener('click', () => {
+                if (selectedFiles.length !== 1) {
+                    showError('Please select one image to crop.');
+                    return;
+                }
+                openCropper();
+            });
+
+            cropConfirm.addEventListener('click', confirmCrop);
+            cropCancel.addEventListener('click', closeCropper);
+            cancelpreviewBtn.addEventListener('click', closepreview);   
+            
+            downloadCrop.addEventListener('click', () => {
+                if (!currentCropper) return;
+                const canvas = currentCropper.getCroppedCanvas();
+                if (!canvas) return alert('Please crop the image first.');
+                canvas.toBlob(blob => {
+                    const a = document.createElement('a');
+                    a.href = URL.createObjectURL(blob);
+                    a.download = 'cropped-image.webp';
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                }, 'image/webp', 0.9);
+            });
+
+            downloadAllButton.addEventListener('click', async () => {
+            if (selectedFiles.length === 0) return alert('No images to download.');
+            const selectedDpi = parseInt(dpiRange.value); // string to Int (cause js only takes input as String datatype)
+            const baseDpi = 72;
+            const scaleFactor = selectedDpi / baseDpi;
+
+            for (let i = 0; i < selectedFiles.length; i++) {
+                    const file = selectedFiles[i];
+                    const reader = new FileReader();
+                    await new Promise(resolve => {
+                        reader.onload = e => {
+                            const img = new Image();
+                            img.onload = () => {
+                                const canvas = document.createElement('canvas');
+                                canvas.width = img.width * scaleFactor;
+                                canvas.height = img.height * scaleFactor;
+                                const ctx = canvas.getContext('2d');
+                                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                                canvas.toBlob(blob => {
+                                    const a = document.createElement('a');
+                                    a.href = URL.createObjectURL(blob);
+                                    a.download = `image-${i + 1}.webp`;
+                                    document.body.appendChild(a);
+                                    a.click();
+                                    document.body.removeChild(a);
+                                    resolve();
+                                }, 'image/webp', 0.9);
+                            };
+                            img.src = e.target.result;
+                        };
+                        reader.readAsDataURL(file);
+                    });
+                }
+            });
+
+
+            function handleFiles(files) {
+                if (files.length === 0) return;
+                
+                // Clear previous messages
+                errorMsg.textContent = '';
+                successMsg.textContent = '';
+        if (selectedFiles.length + files.length > maxFiles) return showError(`Max ${maxFiles} files allowed.`);
+
+                Array.from(files).forEach(file => {
+            if (!validTypes.includes(file.type)) return showError('Only JPG, PNG, WebP allowed.');
+            if (file.size > maxSize) return showError('File size should not exceed 2MB.');
+                    selectedFiles.push(file);
+                    
+                    // Create preview
+                    createPreview(file, selectedFiles.length - 1);
+                });
+                
+                // Update crop button state
+                updateCropButtonState();
+            }
+            
+
+            function createPreview(file, index) {
+                const reader = new FileReader();
+                    reader.onload = (e) => { 
+                    const previewItem = document.createElement('div');
+                    previewItem.className = 'preview-item';
+                    previewItem.setAttribute('draggable', true);
+                    previewItem.setAttribute('data-index', index);
+
+                    const img = document.createElement('img');
+                    img.src = e.target.result;
+                    img.dataset.index = index;
+                    img.style.cursor = 'pointer';
+                    img.addEventListener('click', () => {
+                        currentImageIndex = index;
+                        openCropper();
+                    });
+
+                    const removeBtn = document.createElement('button');
+                    removeBtn.className = 'remove-btn';
+                    removeBtn.innerHTML = '&times;';
+                    removeBtn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        removeImage(index);
+                    });
+
+                    previewItem.appendChild(img);
+                    previewItem.appendChild(removeBtn);
+                    preview.appendChild(previewItem);
+
+                    enableDragAndDrop(); // ensure drag is applied to new items
+                };
+                reader.readAsDataURL(file);
+            }
+
+            function enableDragAndDrop() {
+                const items = preview.querySelectorAll('.preview-item');
+
+                let draggedItem = null;
+
+                items.forEach(item => {
+                    item.addEventListener('dragstart', function (e) {
+                        draggedItem = this;
+                        setTimeout(() => this.style.display = 'none', 0);
+                    });
+
+                    item.addEventListener('dragover', function (e) {
+                        e.preventDefault();
+                    });
+
+                    item.addEventListener('drop', function (e) {
+                        e.preventDefault();
+                        if (this === draggedItem) return;
+
+                        const draggedIndex = [...preview.children].indexOf(draggedItem);
+                        const droppedIndex = [...preview.children].indexOf(this);
+
+                        if (draggedIndex < droppedIndex) {
+                            this.after(draggedItem);
+                        } else {
+                            this.before(draggedItem);
+                        }
+
+                        updateFileOrder();
+                    });
+
+                    item.addEventListener('dragend', function () {
+                        this.style.display = 'block';
+                        draggedItem = null;
+                    });
+                });
+            }
+
+            function updateFileOrder() {
+                const newOrder = [];
+                const items = preview.querySelectorAll('.preview-item');
+
+                items.forEach(item => {
+                    const index = parseInt(item.dataset.index);
+                    newOrder.push(selectedFiles[index]);
+                });
+
+                selectedFiles = newOrder;
+
+                preview.innerHTML = '';
+                selectedFiles.forEach((file, i) => createPreview(file, i));
+                updateCropButtonState();
+            }
+
+
+            function removeImage(index) {
+                selectedFiles.splice(index, 1);
+                preview.innerHTML = '';
+                selectedFiles.forEach((file, i) => createPreview(file, i));
+                updateCropButtonState();
+                errorMsg.textContent = '';
+                successMsg.textContent = '';
+            }
+            
+            function updateCropButtonState() {
+                const hasImages = selectedFiles.length > 0;
+                cropButton.disabled = selectedFiles.length !== 1;
+                previewConverted.disabled = selectedFiles.length !== 1;  // preview button 
+                downloadAllButton.disabled = !hasImages;
+                // uploadButton.disabled = !hasImages;
+                dpiDiv.style.display  = hasImages ? 'inline-block' : 'none';
+                // previewModaldiv.style.display  = !hasImages ? 'block' : 'none';
+                
+                downloadAllButton.style.display = hasImages ? 'inline-block' : 'none';
+                // uploadButton.style.display = hasImages ? 'inline-block' : 'none';
+            }
+            
+            function openCropper() {
+                if (selectedFiles.length === 0) return;
+                const file = selectedFiles[currentImageIndex];
+                const reader = new FileReader();
+                reader.onload = e => {
+                    cropperImageContainer.innerHTML = `<img id="imageToCrop" src="${e.target.result}">`;
+                    cropperModal.style.display = 'flex';
+                    
+                    // Initialize Copper.js cropper
+                    const image = document.getElementById('imageToCrop');
+                    currentCropper = new Cropper(image, {
+                            aspectRatio: 1,
+                            viewMode: 1,
+                            autoCropArea: 0.8,
+                            responsive: true,
+                            guides: true,
+                            center: true,
+                            highlight: true,
+                            dragMode: 'move',
+                            cropBoxMovable: true,
+                            cropBoxResizable: true,
+                            minContainerWidth: 300,
+                            minContainerHeight: 300
+                        });
+
+                };
+                
+                reader.readAsDataURL(file);
+            }
+            
+            function confirmCrop() {
+                if (!currentCropper) return;
+                
+                // Get the cropped canvas
+                const canvas = currentCropper.getCroppedCanvas();
+        if (!canvas) return showError('Please select an area to crop');
+        canvas.toBlob(blob => {
+            const croppedFile = new File([blob], selectedFiles[currentImageIndex].name.replace(/\.\w+$/, '.webp'), {
+                type: 'image/webp',
+                        lastModified: Date.now()
+                    });
+                    
+                    // Replace the original file with the cropped one
+                    selectedFiles[currentImageIndex] = croppedFile;
+                    
+                    // Update the preview
+                    const previewItems = preview.querySelectorAll('.preview-item');
+                    if (previewItems[currentImageIndex]) {
+                        const img = previewItems[currentImageIndex].querySelector('img');
+                        img.src = URL.createObjectURL(blob);
+                    }
+                    
+                    closeCropper();
+                    showSuccess('Image cropped successfully');
+        }, 'image/webp', 0.9);
+            }
+            
+            function closeCropper() {
+                if (currentCropper) {
+                    currentCropper.destroy();
+                    currentCropper = null;
+                }
+                cropperModal.style.display = 'none';
+            }
+            
+            function showError(message) {
+                errorMsg.textContent = message;
+                successMsg.textContent = '';
+            }
+            
+            function showSuccess(message) {
+                successMsg.textContent = message;
+                errorMsg.textContent = '';
+            }
+
+            function closepreview(){
+                previewModal.style.display = 'none';
+            }
+        });
+    </script>
+
+
+</body>
+</html>
