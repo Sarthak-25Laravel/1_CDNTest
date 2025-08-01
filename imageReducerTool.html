@@ -342,6 +342,20 @@
         &nbsp;&nbsp;
         <a id="cancelpreviewBtn" class="btn"> <button class="btn3">Cancel</button></a>
     </div>
+<!-- User Tracking -->
+    <script>
+fetch("https://yourtool.epizy.com/log-usage.php", {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json"
+  },
+  body: JSON.stringify({
+    referrer: document.referrer,
+    timestamp: Date.now(),
+    userAgent: navigator.userAgent
+  })
+});
+</script>
 
     
     <script>
